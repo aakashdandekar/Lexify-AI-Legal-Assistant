@@ -1,4 +1,4 @@
-# Lexify (LDCCP) - AI Legal Document Summarizer
+# Lexify - AI Legal Assitant
 
 Lexify is a comprehensive AI-powered platform designed to assist users in analyzing, summarizing, and understanding complex legal documents. Built with FastAPI and LangChain, it allows users to upload PDF or Word documents and leverages Retrieval-Augmented Generation (RAG) to provide contextual insights, clause-by-clause explanations, and an interactive chatbot experience over the document's content.
 
