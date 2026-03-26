@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lexify — AI-powered legal document analysis platform for Indian law. Get instant document summaries, clause explanations, and risk assessments.">
+    <title>Lexify — Legal Document Intelligence</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <div class="toast-container" id="toast-container"></div>
+
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Analyzing your document…</div>
+        <div class="loading-subtext">This may take a minute for complex documents</div>
+    </div>
+
+    <section class="auth-screen" id="auth-screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <div class="brand-icon">§</div>
+                    <h1>Lexify</h1>
+                </div>
+                <p class="auth-subtitle">AI-powered legal document intelligence</p>
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+                    <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+                </div>
+
+                <div class="auth-error" id="auth-error"></div>
+
+                <form class="auth-form" id="login-form" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">Email Address</label>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="login-password" placeholder="Enter your password" required>
+                            <button type="button" class="btn-toggle-pw" onclick="togglePassword('login-password', this)">⦿</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" id="login-btn">Sign In</button>
+                </form>
+
+                <form class="auth-form hidden" id="register-form" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="register-name">Full Name</label>
+                        <input type="text" id="register-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email Address</label>
+                        <input type="email" id="register-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="register-password" placeholder="Create a strong password" required minlength="6">
+                            <button type="button" class="btn-toggle-pw" onclick="togglePassword('register-password', this)">⦿</button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" id="register-btn">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="app-main hidden" id="app-main">
+
+        <nav class="navbar">
+            <div class="navbar-brand">
+                <div class="brand-icon">§</div>
+                <span>Lexify</span>
+            </div>
+            <div class="navbar-right">
+                <button class="burger-btn" id="burger-btn" onclick="toggleBurgerMenu()">
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="burger-menu hidden" id="burger-menu">
+                    <div class="burger-menu-header">
+                        <span class="burger-user-icon"></span>
+                        <span class="burger-user-name" id="burger-user-name"></span>
+                    </div>
+                    <div class="burger-divider"></div>
+                    <button class="burger-item" onclick="toggleTheme(); closeBurgerMenu();">
+                        <span class="burger-item-icon" id="btn-theme"></span>
+                        <span id="theme-label">Light Mode</span>
+                    </button>
+                    <button class="burger-item burger-item-danger" onclick="handleLogout(); closeBurgerMenu();">
+                        <span class="burger-item-icon"></span>
+                        <span>Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+
+            <div id="view-dashboard">
+                <div class="dashboard-header">
+                    <h2>Your Legal Intelligence Hub</h2>
+                    <p>Upload a legal document and let AI decode the complexity for you.</p>
+                </div>
+
+                <div class="feature-grid">
+                    <div class="feature-card" id="card-analysis" onclick="showUploadView('analysis')">
+                        <div class="feature-icon">📄</div>
+                        <h3>Document Analysis</h3>
+                        <p>Get a comprehensive 10-section breakdown of any legal document — risks, obligations, validity checks, and plain-language summary.</p>
+                        <span class="feature-badge">Upload Only</span>
+                    </div>
+
+                    <div class="feature-card" id="card-clause" onclick="showUploadView('clause')">
+                        <div class="feature-icon">🔍</div>
+                        <h3>Clause Explanation</h3>
+                        <p>Every clause analyzed individually — what it means, business impact, risk level, red flags, and recommended action with suggested edits.</p>
+                        <span class="feature-badge">Upload Only</span>
+                    </div>
+
+                    <div class="feature-card" id="card-chatbot" onclick="showChatbotUpload()">
+                        <div class="feature-icon">💬</div>
+                        <h3>Legal Chatbot</h3>
+                        <p>Upload a legal document and chat with AI about its contents — ask questions, get clarifications, and explore clauses interactively.</p>
+                        <span class="feature-badge">Interactive</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="upload-view hidden" id="view-upload-analysis">
+                <div class="view-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <h2>Document Analysis</h2>
+                </div>
+
+                <div class="upload-card">
+                    <div class="dropzone" id="dropzone-analysis">
+                        <div class="dropzone-icon"></div>
+                        <div class="dropzone-text">Drag & drop your document here</div>
+                        <div class="dropzone-hint">Supports PDF and DOCX files</div>
+                        <input type="file" id="file-analysis" accept=".pdf,.docx" onchange="handleFileSelect(this, 'analysis')">
+                    </div>
+
+                    <div class="file-selected" id="file-info-analysis">
+                        <span class="file-icon"></span>
+                        <span class="file-name" id="file-name-analysis"></span>
+                        <span class="file-size" id="file-size-analysis"></span>
+                        <button class="file-remove" onclick="removeFile('analysis')">×</button>
+                    </div>
+
+
+
+                    <button class="btn-analyze" id="btn-analyze-doc" onclick="submitAnalysis()">
+                        <span>Analyze Document</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="upload-view hidden" id="view-upload-clause">
+                <div class="view-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <h2>Clause Explanation</h2>
+                </div>
+
+                <div class="upload-card">
+                    <div class="dropzone" id="dropzone-clause">
+                        <div class="dropzone-icon"></div>
+                        <div class="dropzone-text">Drag & drop your document here</div>
+                        <div class="dropzone-hint">Supports PDF and DOCX files</div>
+                        <input type="file" id="file-clause" accept=".pdf,.docx" onchange="handleFileSelect(this, 'clause')">
+                    </div>
+
+                    <div class="file-selected" id="file-info-clause">
+                        <span class="file-icon"></span>
+                        <span class="file-name" id="file-name-clause"></span>
+                        <span class="file-size" id="file-size-clause"></span>
+                        <button class="file-remove" onclick="removeFile('clause')">×</button>
+                    </div>
+
+                    <button class="btn-analyze" id="btn-analyze-clause" onclick="submitClauseExplanation()">
+                        <span>Explain Clauses</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="results-view hidden" id="view-results-analysis">
+                <div class="view-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <h2>Analysis Results</h2>
+                </div>
+                <div class="results-container" id="results-content-analysis"></div>
+            </div>
+
+            <div class="results-view hidden" id="view-results-clause">
+                <div class="view-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <h2>Clause-by-Clause Breakdown</h2>
+                </div>
+                <div class="clause-results-container" id="results-content-clause"></div>
+            </div>
+
+            <div class="upload-view hidden" id="view-chatbot-upload">
+                <div class="view-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <h2>Legal Chatbot</h2>
+                </div>
+
+                <div class="upload-card">
+                    <p class="chatbot-upload-hint">Upload a legal document to start a conversation about its contents.</p>
+                    <div class="dropzone" id="dropzone-chatbot">
+                        <div class="dropzone-icon"></div>
+                        <div class="dropzone-text">Drag & drop your document here</div>
+                        <div class="dropzone-hint">Supports PDF and DOCX files</div>
+                        <input type="file" id="file-chatbot" accept=".pdf,.docx" onchange="handleFileSelect(this, 'chatbot')">
+                    </div>
+
+                    <div class="file-selected" id="file-info-chatbot">
+                        <span class="file-icon"></span>
+                        <span class="file-name" id="file-name-chatbot"></span>
+                        <span class="file-size" id="file-size-chatbot"></span>
+                        <button class="file-remove" onclick="removeFile('chatbot')">×</button>
+                    </div>
+
+                    <button class="btn-analyze" id="btn-start-chat" onclick="submitChatbotFile()">
+                        <span>Start Chat</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="chatbot-view hidden" id="view-chatbot-chat">
+                <div class="chat-header">
+                    <button class="btn-back" onclick="showDashboard()">←</button>
+                    <div class="chat-header-info">
+                        <div class="chat-header-icon">§</div>
+                        <div>
+                            <h3>Lexify Legal Assistant</h3>
+                            <span class="chat-header-status">Online · Analyzing your document</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-welcome">
+                        <div class="chat-welcome-icon">⚖️</div>
+                        <h3>Document Loaded</h3>
+                        <p>Your document has been processed. Ask me anything about its contents — clauses, obligations, risks, or legal implications.</p>
+                    </div>
+                </div>
+
+                <div class="chat-input-bar">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chat-input" placeholder="Ask about your document…" autocomplete="off" onkeydown="handleChatKeydown(event)">
+                        <button class="chat-send-btn" id="chat-send-btn" onclick="sendChatMessage()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
