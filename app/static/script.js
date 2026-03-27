@@ -4,6 +4,23 @@ let currentMode = null;
 const API_BASE = '';
 const TOKEN_KEY = 'lexify_token';
 const USER_KEY  = 'lexify_user';
+
+function handleUnauthorized() {
+  clearAuth();
+  document.getElementById('app-main').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  showDashboard();
+  showToast('Session expired. Please login again.', 'error');
+}
+
+async function authFetch(url, options = {}) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Unauthorized');
+  }
+  return res;
+}
 function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -91,7 +108,7 @@ async function handleLogin(e) {
   const password = document.getElementById('login-password').value;
 
   btn.disabled = true;
-  btn.textContent = 'Signing in…';
+  btn.textContent = 'Logging in…';
 
   try {
     const res = await fetch(`${API_BASE}/login`, {
@@ -107,7 +124,7 @@ async function handleLogin(e) {
     }
 
     const token = data.access_token || data['access-token'];
-    if (!token) throw new Error('No token received');
+    if (!token) throw new Error('User not found!');
 
     setToken(token);
     setUserName(email.split('@')[0]);
@@ -118,7 +135,7 @@ async function handleLogin(e) {
     showAuthError(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Sign In';
+    btn.textContent = 'Login';
   }
 }
 
@@ -166,7 +183,7 @@ function handleLogout() {
   document.getElementById('app-main').classList.add('hidden');
   document.getElementById('auth-screen').classList.remove('hidden');
   showDashboard();
-  showToast('Signed out', 'info');
+  showToast('Logged out', 'info');
 }
 
 async function enterApp() {
@@ -300,7 +317,7 @@ async function submitAnalysis() {
 
   const token = getToken();
   if (!token) {
-    showToast('Session expired. Please sign in again.', 'error');
+    showToast('Session expired. Please login again.', 'error');
     handleLogout();
     return;
   }
@@ -311,7 +328,7 @@ async function submitAnalysis() {
   showLoading('Analyzing your document…');
 
   try {
-    const res = await fetch(`${API_BASE}/api/upload-files`, {
+    const res = await authFetch(`${API_BASE}/api/upload-files`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
@@ -343,7 +360,7 @@ async function submitClauseExplanation() {
 
   const token = getToken();
   if (!token) {
-    showToast('Session expired. Please sign in again.', 'error');
+    showToast('Session expired. Please login again.', 'error');
     handleLogout();
     return;
   }
@@ -354,7 +371,7 @@ async function submitClauseExplanation() {
   showLoading('Explaining each clause…');
 
   try {
-    const res = await fetch(`${API_BASE}/api/clause-explaination`, {
+    const res = await authFetch(`${API_BASE}/api/clause-explaination`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
@@ -617,7 +634,6 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-/* ── Chatbot Logic ── */
 let chatFile = null;
 let isChatSending = false;
 
@@ -637,7 +653,7 @@ async function submitChatbotFile() {
 
   const token = getToken();
   if (!token) {
-    showToast('Session expired. Please sign in again.', 'error');
+    showToast('Session expired. Please login again.', 'error');
     handleLogout();
     return;
   }
@@ -649,7 +665,7 @@ async function submitChatbotFile() {
   showLoading('Preparing your document for chat…');
 
   try {
-    const res = await fetch(`${API_BASE}/chatbot/new-chat`, {
+    const res = await authFetch(`${API_BASE}/chatbot/new-chat`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData
@@ -661,11 +677,9 @@ async function submitChatbotFile() {
       throw new Error(data.detail || 'Failed to start chat session');
     }
 
-    // Transition to the chat view
     hideAllViews();
     document.getElementById('view-chatbot-chat').classList.remove('hidden');
 
-    // Reset messages to welcome
     const messagesEl = document.getElementById('chat-messages');
     messagesEl.innerHTML = `
       <div class="chat-welcome">
@@ -735,7 +749,7 @@ async function sendChatMessage() {
 
   const token = getToken();
   if (!token) {
-    showToast('Session expired. Please sign in again.', 'error');
+    showToast('Session expired. Please login again.', 'error');
     handleLogout();
     return;
   }
@@ -752,7 +766,7 @@ async function sendChatMessage() {
   showTypingIndicator();
 
   try {
-    const res = await fetch(`${API_BASE}/chatbot/chat-reponse?query=${encodeURIComponent(query)}`, {
+    const res = await authFetch(`${API_BASE}/chatbot/chat-reponse?query=${encodeURIComponent(query)}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -788,6 +802,248 @@ function handleChatKeydown(e) {
     sendChatMessage();
   }
 }
+
+let savedChatsPanelOpen = false;
+
+async function saveCurrentChat() {
+  const token = getToken();
+  if (!token) {
+    showToast('Session expired. Please login again.', 'error');
+    handleLogout();
+    return;
+  }
+
+  const btn = document.getElementById('btn-save-chat');
+  btn.disabled = true;
+  btn.classList.add('saving');
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+    <span>Saving…</span>
+  `;
+
+  try {
+    const res = await authFetch(`${API_BASE}/chatbot/save-chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to save chat');
+    }
+
+    btn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>Saved!</span>
+    `;
+    btn.style.background = '#22C55E';
+
+    showToast('Chat saved successfully!', 'success');
+
+    setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.style.background = '';
+      btn.disabled = false;
+      btn.classList.remove('saving');
+    }, 2000);
+
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+    btn.classList.remove('saving');
+  }
+}
+
+function openSavedChatsPanel() {
+  const overlay = document.getElementById('saved-chats-overlay');
+  const panel = document.getElementById('saved-chats-panel');
+
+  overlay.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    overlay.classList.add('show');
+    panel.classList.add('open');
+  });
+
+  savedChatsPanelOpen = true;
+  loadSavedChats();
+}
+
+function closeSavedChatsPanel() {
+  const overlay = document.getElementById('saved-chats-overlay');
+  const panel = document.getElementById('saved-chats-panel');
+
+  overlay.classList.remove('show');
+  panel.classList.remove('open');
+
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+  }, 350);
+
+  savedChatsPanelOpen = false;
+}
+
+async function loadSavedChats() {
+  const token = getToken();
+  if (!token) {
+    showToast('Session expired. Please login again.', 'error');
+    handleLogout();
+    return;
+  }
+
+  const listEl = document.getElementById('saved-chats-list');
+  listEl.innerHTML = `
+    <div class="saved-chats-loading">
+      <div class="loading-spinner"></div>
+      <span>Loading saved chats…</span>
+    </div>
+  `;
+
+  try {
+    const res = await authFetch(`${API_BASE}/chatbot/list-chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to load chats');
+    }
+
+    const chats = data.chatbot_log || [];
+
+    if (chats.length === 0) {
+      listEl.innerHTML = `
+        <div class="saved-chats-empty">
+          <div class="saved-chats-empty-icon">💬</div>
+          <p>No saved chats yet</p>
+          <span>Save a chat session to see it here</span>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = '';
+    chats.forEach((chat, idx) => {
+      const card = document.createElement('div');
+      card.className = 'saved-chat-card';
+      card.style.animationDelay = `${idx * 0.06}s`;
+      card.onclick = () => loadSpecificChat(chat);
+
+      const title = chat.title || 'Untitled Chat';
+      const preview = chat.history
+        ? chat.history.substring(0, 120).replace(/\n/g, ' ') + '…'
+        : 'No conversation preview available';
+      const shortId = chat._id ? chat._id.substring(chat._id.length - 6) : '—';
+
+      card.innerHTML = `
+        <div class="saved-chat-card-title">${escapeHtml(title)}</div>
+        <div class="saved-chat-card-preview">${escapeHtml(preview)}</div>
+        <div class="saved-chat-card-meta">
+          <span class="saved-chat-card-id">#${shortId}</span>
+          <span class="saved-chat-card-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Resume
+          </span>
+        </div>
+      `;
+
+      listEl.appendChild(card);
+    });
+
+  } catch (err) {
+    listEl.innerHTML = `
+      <div class="saved-chats-empty">
+        <div class="saved-chats-empty-icon">⚠️</div>
+        <p>Failed to load chats</p>
+        <span>${escapeHtml(err.message)}</span>
+      </div>
+    `;
+  }
+}
+
+async function loadSpecificChat(chat) {
+  closeSavedChatsPanel();
+
+  const token = getToken();
+  if (!token) {
+    showToast('Session expired. Please login again.', 'error');
+    handleLogout();
+    return;
+  }
+
+  showLoading('Loading saved chat…');
+
+  try {
+    const chatbotCollection = chat.file || '';
+    const chatHistory = chat.history || '';
+
+    hideAllViews();
+    document.getElementById('view-chatbot-chat').classList.remove('hidden');
+
+    const messagesEl = document.getElementById('chat-messages');
+    messagesEl.innerHTML = '';
+
+    if (chatHistory.trim()) {
+      const lines = chatHistory.split('\n');
+      let currentRole = null;
+      let currentMessage = '';
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('User Response:')) {
+          if (currentRole && currentMessage.trim()) {
+            renderChatBubble(currentMessage.trim(), currentRole);
+          }
+          currentRole = 'user';
+          currentMessage = trimmed.replace('User Response:', '').trim();
+        } else if (trimmed.startsWith('System Response:')) {
+          if (currentRole && currentMessage.trim()) {
+            renderChatBubble(currentMessage.trim(), currentRole);
+          }
+          currentRole = 'assistant';
+          currentMessage = trimmed.replace('System Response:', '').trim();
+        } else {
+          currentMessage += '\n' + trimmed;
+        }
+      });
+
+      if (currentRole && currentMessage.trim()) {
+        renderChatBubble(currentMessage.trim(), currentRole);
+      }
+    }
+
+    if (messagesEl.children.length === 0) {
+      messagesEl.innerHTML = `
+        <div class="chat-welcome">
+          <div class="chat-welcome-icon">📂</div>
+          <h3>Chat Restored</h3>
+          <p>${escapeHtml(chat.title || 'Saved conversation')} — continue the conversation below.</p>
+        </div>
+      `;
+    }
+
+    document.getElementById('chat-input').focus();
+    showToast(`Chat "${chat.title || 'Untitled'}" loaded!`, 'success');
+
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
   const next = current === 'light' ? 'dark' : 'light';
@@ -829,6 +1085,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('burger-btn');
     if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
       closeBurgerMenu();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && savedChatsPanelOpen) {
+      closeSavedChatsPanel();
     }
   });
 

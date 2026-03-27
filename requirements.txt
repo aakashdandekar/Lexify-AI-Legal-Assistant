@@ -1,6 +1,6 @@
 langchain_core
 langchain_ollama
-fastapi==0.110.0
+fastapi
 uvicorn[standard]==0.29.0
 motor==3.4.0
 pymongo==4.5.0
@@ -24,3 +24,4 @@ langchain_groq
 langchain_community
 PyPDF2
 langchain
+cryptography

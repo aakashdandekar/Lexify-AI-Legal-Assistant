@@ -661,6 +661,7 @@ async def chatbot_Response(docs: str, chat_history: str, query: str) -> dict:
         - Use plain language — avoid unnecessary jargon unless quoting directly
         - If the question is ambiguous, briefly clarify what you are interpreting it to mean before answering
         - Do **not** provide legal advice or opinions — only factual summaries of what the document states
+        - Do **NOT** simulate conversation, roleplay, or output phrases like "User Response:" or "System Response:" under any circumstances.
 
         Respond ONLY in valid JSON format:
 
