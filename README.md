@@ -1,92 +1,103 @@
-# Lexify - AI Legal Assitant
+# Lexify: AI Legal Assistant
 
-Lexify is a comprehensive AI-powered platform designed to assist users in analyzing, summarizing, and understanding complex legal documents. Built with FastAPI and LangChain, it allows users to upload PDF or Word documents and leverages Retrieval-Augmented Generation (RAG) to provide contextual insights, clause-by-clause explanations, and an interactive chatbot experience over the document's content.
+Lexify is an intelligent, AI-powered legal document analysis and chat platform built to simplify the process of reviewing and understanding complex legal texts. With Lexify, users can securely upload legal documents (PDF/DOCX), get automated context summaries, detailed clause explanations, and interact with a persistent, intelligent chatbot to ask specific questions about their documents.
 
 ## Features
 
-- **User Authentication**: Secure user registration and login utilizing JWT tokens and password hashing (bcrypt).
-- **Document Processing**: Upload and extract text seamlessly from `.pdf` and `.docx` format documents.
-- **Contextual Understanding (RAG)**: Employs large language models via LangChain & Groq to generate intelligent context summaries.
-- **Clause Explanation**: Specifically tailored endpoints to analyze document clauses and explain them in plain language.
-- **Interactive Chatbot**: Have a conversation with your document! The chatbot retains chat history to answer follow-up queries contextually.
-- **Modern UI**: Serves a fast and responsive frontend using Jinja2 templates, HTML, CSS, and JavaScript.
+- **Robust Authentication**: Secure user registration and login using JWT tokens and bcrypt password hashing.
+- **Document Processing**: Seamlessly upload and process `.pdf` and `.docx` files.
+- **Context Understanding**: Automatically extracts and summarizes the core context of uploaded legal documents.
+- **Clause Explanation**: Breaks down and explains complex legal clauses in plain language.
+- **Interactive AI Chatbot**:
+  - Ask specific questions about your uploaded documents.
+  - Persistent chat history that can be saved and retrieved later.
+  - Generates automatic chat titles based on conversation context.
+- **Data Security**: Documents and chat histories are securely encrypted at rest using Fernet symmetric encryption.
+- **Modern Tech Stack**: Powered by a high-performance FastAPI back-end and an integrated AI processing pipeline using LangChain.
 
-## Tech Stack
+## Technology Stack
 
-- **Backend**: FastAPI, Uvicorn (ASGI server)
-- **AI & RAG Framework**: LangChain, Groq API, HuggingFace (sentence-transformers)
-- **Vector Store**: ChromaDB / FAISS
-- **Database**: MongoDB (async communication via Motor)
-- **Authentication**: python-jose (JWT), passlib (bcrypt)
-- **Frontend**: Jinja2 Templates, Vanilla JS, CSS
+- **Backend Framework**: [FastAPI](https://fastapi.tiangolo.com/)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Async with Motor)
+- **AI & NLP**: [LangChain](https://www.langchain.com/), local models via HuggingFace, Sentence-Transformers, ChromaDB/FAISS.
+- **Frontend**: HTML/CSS/JS with Jinja2 Templating
+- **Security**: Cryptography (Fernet), Passlib (Bcrypt), Python-JOSE (JWT)
 
-## Prerequisites
+## Local Development Setup
 
-- Python 3.10+
-- MongoDB instance (local or MongoDB Atlas)
-- Groq API Key (for LLM inference)
+### Prerequisites
 
-## Installation & Setup
+- Python 3.9+
+- MongoDB instance (local or Atlas)
+- Required API keys (e.g., HuggingFace, LLM providers if applicable)
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/LDCCP.git
-   cd LDCCP
-   ```
+### 1. Clone the repository
 
-2. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Linux/macOS
-   # .venv\Scripts\activate   # On Windows
-   ```
+```bash
+git clone <your-repo-url>
+cd LDCCP
+```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 2. Set up a virtual environment
 
-4. **Environment Variables:**
-   Create a `.env` file in the root directory and configure the necessary environment variables. Examples might include:
-   ```env
-   # Database Configuration
-   MONGO_URI=your_mongodb_connection_string
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
 
-   # AI / LLM Configuration
-   GROQ_API_KEY=your_groq_api_key
+### 3. Install dependencies
 
-   # Authentication Secret (for JWT)
-   SECRET_KEY=your_super_secret_key
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-5. **Run the Application:**
-   You can launch the backend server using the provided `launch.py` script:
-   ```bash
-   python launch.py
-   ```
-   Alternatively, run it directly with Uvicorn:
-   ```bash
-   uvicorn app.app:app --host 0.0.0.0 --port 8000 --reload
-   ```
+### 4. Configure Environment Variables
 
-6. **Access the application:**
-   Open your browser and navigate to `http://localhost:8000`.
+Create a `.env` file in the root directory and configure the following variables:
+
+```env
+# Database Configuration
+MONGO_URI=mongodb://localhost:27017/  # Or your MongoDB Atlas URI
+DB_NAME=lexify_db
+
+# Security & Authentication
+JWT_SECRET_KEY=your_super_secret_jwt_key
+FERNET_KEY=your_fernet_encryption_key_base64
+
+# External APIs
+# Add any required LLM provider API keys here (e.g., GROQ_API_KEY if using Groq)
+```
+
+### 5. Run the Application
+
+Start the FastAPI application using the provided launch script or Uvicorn directly:
+
+```bash
+python launch.py
+# OR
+uvicorn app.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 6. Access the Application
+
+- **Frontend Application**: `http://localhost:8000/`
+- **Swagger API Docs**: `http://localhost:8000/docs`
+- **ReDoc API Docs**: `http://localhost:8000/redoc`
 
 ## API Endpoints Overview
 
-- **Frontend:**
-  - `GET /` - Loads the main frontend UI.
-- **Authentication:**
-  - `POST /register` - Register a new user.
-  - `POST /login` - Authenticate a user and receive a JWT.
-  - `POST /profile` - Retrieve user profile information.
-- **Document Services:**
-  - `POST /api/upload-files` - Upload PDF/Docx and get a contextual summary.
-  - `POST /api/clause-explaination` - Upload a document for clause breakdown.
-- **Chatbot:**
-  - `POST /chatbot/new-chat` - Initialize a new interactive chat session with an uploaded document.
-  - `POST /chatbot/chat-reponse` - Query the chatbot regarding the previously uploaded document.
+| Group | Method | Endpoint | Description |
+|---|---|---|---|
+| **Auth** | `POST` | `/register` | Register a new user |
+| **Auth** | `POST` | `/login` | Authenticate user and receive JWT |
+| **User** | `POST` | `/profile` | Get current user profile details |
+| **Analysis** | `POST` | `/api/upload-files` | Upload document and get context overview |
+| **Analysis** | `POST` | `/api/clause-explaination`| Upload document and get clause explanations |
+| **Chatbot** | `POST` | `/chatbot/new-chat` | Initialize a new chatbot session with a document |
+| **Chatbot** | `POST` | `/chatbot/chat-reponse` | Interact with the active chatbot |
+| **Chatbot** | `POST` | `/chatbot/save-chat` | Save the current active chat session |
+| **Chatbot** | `POST` | `/chatbot/list-chat` | Retrieve history of saved chats |
 
-## License
+## Security Note
 
-This project is licensed under the Apache 2.0 License.
+This application handles sensitive legal documents. Ensure that your `FERNET_KEY` and `JWT_SECRET_KEY` are kept fully secure and never committed to version control. The application encrypts chat history files before storing them in the database to ensure maximum privacy.
