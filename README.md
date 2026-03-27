@@ -73,8 +73,6 @@ FERNET_KEY=your_fernet_encryption_key_base64
 Start the FastAPI application using the provided launch script or Uvicorn directly:
 
 ```bash
-python launch.py
-# OR
 uvicorn app.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
