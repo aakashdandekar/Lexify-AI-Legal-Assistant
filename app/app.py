@@ -9,12 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from bson import ObjectId
+from cryptography.fernet import Fernet
 from app.database.db import database, serialize
 from app.models.schema import User, Login, Context_history, Chatbot
 from app.core.auth import hash, check_hash, get_current_user, create_access_token
 from app.services.document import pdf_to_text, docx_to_text
 from app.services.rag import context_understanding_model, clause_explaination, chatbot_Response, generate_title
 
+#Router
 app = FastAPI(
     servers=[{"url": "http://localhost:8000"}]
 )
@@ -31,6 +33,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+#Encryption Config
+f = Fernet(os.getenv("FERNET_KEY"))
 
 #Frontend
 @app.get('/')
@@ -98,7 +103,7 @@ async def login_user(login: Login):
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-#Profile
+#Routes
 @app.post('/profile')
 async def profile(current_user: str = Depends(get_current_user)):
     try:
@@ -117,7 +122,6 @@ async def profile(current_user: str = Depends(get_current_user)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-#B2C User Tier
 @app.post('/api/upload-files')
 async def upload_files(
     file: UploadFile = File(...),
@@ -189,6 +193,7 @@ async def chatbot_reference(
 ):
     try:
         contents = await file.read()
+        data = None
 
         if file.filename.endswith(".pdf"):
             data = await asyncio.to_thread(pdf_to_text, contents)
@@ -213,7 +218,7 @@ async def chatbot_reference(
         else:
             await collection.update_one(
                 {"user_id": current_user},
-                {"$set": {"last_save": data, "date_save": datetime.now(tz=timezone.utc)}}
+                {"$set": {"file": data, "last_save": "", "date_save": datetime.now(tz=timezone.utc)}}
             )
 
         return {"message": "New Chat"}
@@ -253,6 +258,8 @@ async def chat_reponses(
         if disc and str(disc).strip() and str(disc).strip().lower() != "none":
             response += f"\n\nDisclaimer: {disc}"
 
+        response = response.replace("User Response:", "User:").replace("System Response:", "System:")
+
         updated_data = f"\nUser Response: {query}\nSystem Response: {response}\n"
         history = history + updated_data
 
@@ -276,14 +283,32 @@ async def chat_reponses(
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.post('/chatbot/save-chat')
-async def chatbot_savechat():
+async def chatbot_savechat(
+    current_user: User = Depends(get_current_user)
+):
     try:
         chatbot_collection = database['chatbot']
         collection = database['chats']
 
-        context = await chatbot_collection({})
+        record = await chatbot_collection.find_one({"user_id": current_user})
 
-        title = await generate_title()
+        if not record:
+            raise HTTPException(status_code=404, detail="No active chat session found")
+
+        file_content = record.get("file", "")
+        context = record.get("last_save", "")
+        title = await generate_title(context=context)
+
+        data = f.encrypt(file_content.encode())
+
+        result = await collection.insert_one({
+            "user_id": current_user,
+            "title": title,
+            "file": data,
+            "history": context
+        })
+
+        return {"Chat Reference ID": str(result.inserted_id)}
 
     except HTTPException:
         raise
@@ -292,3 +317,36 @@ async def chatbot_savechat():
         print(f"Error: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@app.post('/chatbot/list-chat')
+async def list_chatbot(
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        collection = database['chats']
+        records = await collection.find({"user_id": current_user}).to_list(length=None)
+
+        result = []
+        for record in records:
+            file = record.get("file", b"")
+            try:
+                decrypted_file = f.decrypt(file).decode() if isinstance(file, bytes) else file
+            except:
+                decrypted_file = str(file)
+                
+            result.append({
+                "_id": str(record["_id"]),
+                "title": record.get("title", ""),
+                "history": record.get("history", ""),
+                "file": decrypted_file
+            })
+
+        return {"chatbot_log": result}
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print(f"Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Interval Server Error")
